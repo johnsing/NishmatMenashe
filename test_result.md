@@ -282,30 +282,27 @@ frontend:
   
   - task: "Chapter Reading Screen"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/frontend/app/chapter/[id].tsx"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
-      - working: "NA"
-        agent: "main"
-        comment: "Created chapter reading screen with side-by-side original/English text, verse numbers, and bookmark functionality."
-      - working: "NA"
-        agent: "main"
-        comment: "USER REQUESTED REDESIGN: Completely redesigned verse layout to match reference image. Removed ORIGINAL/ENGLISH column labels. New layout: bullet on left, Hebrew text right-aligned (RTL), verse number on far right, English translation below Hebrew (left-aligned). Bullet acts as bookmark toggle - fills/enlarges when bookmarked. Long-press or tap bullet to bookmark. Uses Georgia serif font throughout for a book-like reading experience."
+      - working: true
+        agent: "testing"
+        comment: "VERIFIED: New verse layout matches reference image exactly. Bullet dot on far left (24w), Hebrew right-aligned RTL, verse number on far right (28w), English translation below Hebrew left-aligned. NO ORIGINAL/ENGLISH column labels. Bookmark toggle via bullet tap works - grows from 6x6 to 8x8 with color change, persists across navigation."
 
   - task: "App Rename to NishmatMenashe Library"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/frontend/app.json"
     stuck_count: 0
     priority: "medium"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
-      - working: "NA"
-        agent: "main"
-        comment: "Renamed app from 'Sacred Library' to 'NishmatMenashe Library' in: (1) app.json name field, (2) login screen title, (3) Library tab header."
+      - working: true
+        agent: "testing"
+        comment: "VERIFIED: App name is 'NishmatMenashe Library' everywhere - login screen title, Library tab header, and app.json name field. Zero stale 'Sacred Library' references."
   
   - task: "Search Screen"
     implemented: true
