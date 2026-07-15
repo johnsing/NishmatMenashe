@@ -291,6 +291,21 @@ frontend:
       - working: "NA"
         agent: "main"
         comment: "Created chapter reading screen with side-by-side original/English text, verse numbers, and bookmark functionality."
+      - working: "NA"
+        agent: "main"
+        comment: "USER REQUESTED REDESIGN: Completely redesigned verse layout to match reference image. Removed ORIGINAL/ENGLISH column labels. New layout: bullet on left, Hebrew text right-aligned (RTL), verse number on far right, English translation below Hebrew (left-aligned). Bullet acts as bookmark toggle - fills/enlarges when bookmarked. Long-press or tap bullet to bookmark. Uses Georgia serif font throughout for a book-like reading experience."
+
+  - task: "App Rename to NishmatMenashe Library"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/app.json"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Renamed app from 'Sacred Library' to 'NishmatMenashe Library' in: (1) app.json name field, (2) login screen title, (3) Library tab header."
   
   - task: "Search Screen"
     implemented: true

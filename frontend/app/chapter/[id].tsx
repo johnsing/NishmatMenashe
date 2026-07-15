@@ -30,9 +30,9 @@ interface Chapter {
 
 interface Book {
   book_id: string;
+  category_id: string;
   title: string;
   author: string;
-  description: string;
   chapter_count: number;
   cover_color: string;
 }
@@ -76,7 +76,7 @@ export default function ChapterScreen() {
   const loadBookmarks = async () => {
     try {
       const bookmarks = await apiClient.get<any[]>('/api/bookmarks');
-      const verseIds = new Set(bookmarks.map((b) => b.verse_id));
+      const verseIds = new Set<string>(bookmarks.map((b) => b.verse_id));
       setBookmarkedVerses(verseIds);
     } catch (error) {
       console.error('Error loading bookmarks:', error);
@@ -88,7 +88,6 @@ export default function ChapterScreen() {
 
     try {
       if (bookmarkedVerses.has(verse.verse_id)) {
-        // Remove bookmark
         const bookmarks = await apiClient.get<any[]>('/api/bookmarks');
         const bookmark = bookmarks.find((b) => b.verse_id === verse.verse_id);
         if (bookmark) {
@@ -98,7 +97,6 @@ export default function ChapterScreen() {
           setBookmarkedVerses(newSet);
         }
       } else {
-        // Add bookmark
         await apiClient.post('/api/bookmarks', {
           book_id: book.book_id,
           chapter_id: chapter.chapter_id,
@@ -137,7 +135,7 @@ export default function ChapterScreen() {
     <View style={styles.container}>
       <Stack.Screen
         options={{
-          title: `${book.title} - ${chapter.title}`,
+          title: `${book.title} ${chapter.chapter_number}`,
           headerShown: true,
           headerBackTitle: 'Back',
           headerStyle: {
@@ -145,9 +143,9 @@ export default function ChapterScreen() {
           },
           headerTitleStyle: {
             fontFamily: 'Georgia',
-            fontSize: 16,
-            fontWeight: '700',
-            color: '#4A3728',
+            fontSize: 18,
+            fontWeight: '400',
+            color: '#3A2F26',
           },
           headerTintColor: '#8B4513',
         }}
@@ -157,7 +155,9 @@ export default function ChapterScreen() {
         {/* Chapter Header */}
         <View style={styles.chapterHeader}>
           <Text style={styles.bookTitle}>{book.title}</Text>
-          <Text style={styles.chapterTitle}>Chapter {chapter.chapter_number}: {chapter.title}</Text>
+          <Text style={styles.chapterTitle}>
+            Chapter {chapter.chapter_number}: {chapter.title}
+          </Text>
         </View>
 
         {/* Verses */}
@@ -166,41 +166,45 @@ export default function ChapterScreen() {
             <Text style={styles.emptyText}>No verses available for this chapter</Text>
           </View>
         ) : (
-          verses.map((verse) => (
-            <View key={verse.verse_id} style={styles.verseContainer}>
-              <View style={styles.verseHeader}>
-                <Text style={styles.verseNumber}>{verse.verse_number}</Text>
-                <TouchableOpacity
-                  onPress={() => toggleBookmark(verse)}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                  <Ionicons
-                    name={bookmarkedVerses.has(verse.verse_id) ? 'bookmark' : 'bookmark-outline'}
-                    size={24}
-                    color={bookmarkedVerses.has(verse.verse_id) ? '#8B4513' : '#9A8A7A'}
-                  />
-                </TouchableOpacity>
-              </View>
-
-              {/* Side-by-side layout */}
-              <View style={styles.textsContainer}>
-                {/* Original Text */}
-                <View style={styles.textColumn}>
-                  <Text style={styles.columnLabel}>Original</Text>
-                  <Text style={styles.originalText}>{verse.original_text}</Text>
+          verses.map((verse) => {
+            const isBookmarked = bookmarkedVerses.has(verse.verse_id);
+            return (
+              <TouchableOpacity
+                key={verse.verse_id}
+                style={styles.verseRow}
+                onLongPress={() => toggleBookmark(verse)}
+                activeOpacity={0.7}
+                testID={`verse-${verse.verse_id}`}
+              >
+                {/* Bullet column */}
+                <View style={styles.bulletCol}>
+                  <TouchableOpacity
+                    onPress={() => toggleBookmark(verse)}
+                    hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                    testID={`bookmark-${verse.verse_id}`}
+                  >
+                    <View
+                      style={[
+                        styles.bullet,
+                        isBookmarked && styles.bulletActive,
+                      ]}
+                    />
+                  </TouchableOpacity>
                 </View>
 
-                {/* Divider */}
-                <View style={styles.divider} />
-
-                {/* English Translation */}
-                <View style={styles.textColumn}>
-                  <Text style={styles.columnLabel}>English</Text>
-                  <Text style={styles.translationText}>{verse.english_translation}</Text>
+                {/* Content column */}
+                <View style={styles.contentCol}>
+                  <Text style={styles.hebrewText}>{verse.original_text}</Text>
+                  <Text style={styles.englishText}>{verse.english_translation}</Text>
                 </View>
-              </View>
-            </View>
-          ))
+
+                {/* Verse number column */}
+                <View style={styles.numberCol}>
+                  <Text style={styles.verseNumber}>{verse.verse_number}</Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })
         )}
 
         <View style={styles.bottomPadding} />
@@ -228,25 +232,28 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 8,
   },
   chapterHeader: {
     paddingVertical: 24,
+    paddingHorizontal: 8,
     alignItems: 'center',
-    borderBottomWidth: 2,
+    borderBottomWidth: 1,
     borderBottomColor: '#E8DCC8',
-    marginBottom: 16,
-  },
-  bookTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#8B4513',
     marginBottom: 8,
   },
+  bookTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#8B4513',
+    marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
   chapterTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#4A3728',
+    fontSize: 22,
+    fontWeight: '400',
+    color: '#3A2F26',
     textAlign: 'center',
     fontFamily: 'Georgia',
   },
@@ -259,57 +266,60 @@ const styles = StyleSheet.create({
     color: '#7A6A5A',
     textAlign: 'center',
   },
-  verseContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#E8DCC8',
-  },
-  verseHeader: {
+  verseRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    paddingVertical: 20,
+    paddingHorizontal: 4,
+    borderBottomWidth: 0,
+  },
+  bulletCol: {
+    width: 24,
     alignItems: 'center',
+    paddingTop: 14,
+  },
+  bullet: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#3A2F26',
+  },
+  bulletActive: {
+    backgroundColor: '#8B4513',
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  contentCol: {
+    flex: 1,
+    paddingHorizontal: 8,
+  },
+  hebrewText: {
+    fontSize: 22,
+    lineHeight: 40,
+    color: '#2A2018',
+    textAlign: 'right',
+    writingDirection: 'rtl',
+    fontFamily: 'Georgia',
     marginBottom: 12,
   },
-  verseNumber: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#8B4513',
-  },
-  textsContainer: {
-    flexDirection: 'row',
-    gap: 16,
-  },
-  textColumn: {
-    flex: 1,
-  },
-  columnLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#9A8A7A',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 8,
-  },
-  originalText: {
+  englishText: {
     fontSize: 16,
     lineHeight: 26,
-    color: '#4A3728',
+    color: '#3A2F26',
     fontFamily: 'Georgia',
   },
-  divider: {
-    width: 1,
-    backgroundColor: '#E8DCC8',
+  numberCol: {
+    width: 28,
+    alignItems: 'center',
+    paddingTop: 14,
   },
-  translationText: {
-    fontSize: 16,
-    lineHeight: 26,
-    color: '#5A4A3A',
+  verseNumber: {
+    fontSize: 12,
+    color: '#9A8A7A',
     fontFamily: 'Georgia',
   },
   bottomPadding: {
-    height: 32,
+    height: 48,
   },
 });

@@ -13,7 +13,7 @@ export default function LoginScreen() {
           <Ionicons name="book" size={80} color="#8B4513" />
         </View>
         
-        <Text style={styles.title}>Sacred Library</Text>
+        <Text style={styles.title}>NishmatMenashe Library</Text>
         <Text style={styles.subtitle}>
           Access timeless wisdom and sacred texts{`\n`}anytime, anywhere
         </Text>
@@ -58,11 +58,12 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   title: {
-    fontSize: 36,
+    fontSize: 30,
     fontWeight: '700',
     color: '#4A3728',
     marginBottom: 12,
     fontFamily: 'Georgia',
+    textAlign: 'center',
   },
   subtitle: {
     fontSize: 16,
