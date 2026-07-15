@@ -2,7 +2,7 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, 
 import { useState, useEffect } from 'react';
 import { apiClient } from '@/src/api/client';
 import { Ionicons } from '@expo/vector-icons';
-import { adminStyles } from './styles';
+import { adminStyles } from './_styles';
 
 interface Category {
   category_id: string;

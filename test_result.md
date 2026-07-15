@@ -330,39 +330,39 @@ frontend:
   
   - task: "Admin Dashboard - Backend"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
-      - working: "NA"
-        agent: "main"
-        comment: "Added complete admin backend: (1) User model now has 'role' field ('user' or 'admin'), (2) Auto-admin role for whitelisted email tzurielsingson@gmail.com on login/existing user upgrade, (3) require_admin dependency (returns 403 for non-admin), (4) Full CRUD endpoints under /api/admin/: categories, books, chapters, verses (POST/PUT/DELETE), (5) GET /api/admin/users (list), (6) GET /api/admin/analytics (stats + top bookmarked verses aggregation), (7) Cascading deletes maintain data integrity."
+      - working: true
+        agent: "testing"
+        comment: "VERIFIED 8/8 backend tests PASSED. Auth guards (401/403), analytics endpoint, users list with role, full CRUD cascade (Category→Book→Chapter→Verse), auto-count updates, cascade deletes all working correctly."
 
   - task: "Admin Dashboard - Frontend"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/frontend/app/admin/index.tsx"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
-      - working: "NA"
-        agent: "main"
-        comment: "Built complete admin UI accessed via Profile > Admin Dashboard button (visible only if user.role==='admin'). Screens: (1) Dashboard home with 3 stat cards + 5 management navigation cards + top popular verses, (2) Categories: FAB add, tap edit, delete with cascade warning, modal form with 8-color picker, (3) Books: category picker + all fields, (4) Chapters: book filter chips + book picker in form, (5) Verses: book filter + chapter picker + Hebrew RTL input + English input, (6) Users: avatar, name, email, join date, admin badge. AuthContext extended to include role. Admin button in Profile shows only for admins."
+      - working: true
+        agent: "testing"
+        comment: "VERIFIED via Playwright: Admin button gated by role, dashboard shows stats + management cards + navigation works, all 5 sub-screens (Categories/Books/Chapters/Verses/Users) load, FABs open modals, filter chips scroll horizontally, Hebrew RTL renders, admin badge shown only on admin. Renamed styles.ts to _styles.ts to avoid expo-router picking it up as a route."
 
   - task: "Profile Screen"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/frontend/app/(tabs)/profile.tsx"
     stuck_count: 0
     priority: "medium"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
-      - working: "NA"
-        agent: "main"
-        comment: "Updated profile screen: added Admin Dashboard section visible only when user.role === 'admin'. Section shows shield icon + 'Admin Dashboard' with chevron, navigates to /admin route."
+      - working: true
+        agent: "testing"
+        comment: "VERIFIED: Admin Dashboard button visible only for admins (user.role === 'admin'), correctly navigates to /admin route."
   
   - task: "Tab Navigation"
     implemented: true

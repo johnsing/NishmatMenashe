@@ -2,7 +2,7 @@ import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, Modal, TextI
 import { useState, useEffect } from 'react';
 import { apiClient } from '@/src/api/client';
 import { Ionicons } from '@expo/vector-icons';
-import { adminStyles } from './styles';
+import { adminStyles } from './_styles';
 
 interface Book {
   book_id: string;

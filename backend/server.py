@@ -417,7 +417,7 @@ class VerseInput(BaseModel):
 
 # --- Analytics ---
 @api_router.get("/admin/analytics")
-async def get_analytics(admin: User = None, authorization: Optional[str] = Header(None)):
+async def get_analytics(authorization: Optional[str] = Header(None)):
     """Get admin analytics dashboard data"""
     await require_admin(authorization)
     
