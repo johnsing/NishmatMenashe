@@ -246,7 +246,7 @@ async def search_texts(
     # Create text indexes if they don't exist
     try:
         await db.verses.create_index([("original_text", "text"), ("english_translation", "text")])
-    except:
+    except Exception:
         pass  # Index might already exist
     
     # Search in verses
