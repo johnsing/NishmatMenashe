@@ -11,6 +11,7 @@ interface User {
   email: string;
   name: string;
   picture?: string;
+  role?: string;
 }
 
 interface AuthContextType {
@@ -117,7 +118,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           user_id: data.user_id,
           email: data.email,
           name: data.name,
-          picture: data.picture
+          picture: data.picture,
+          role: data.role,
         });
       }
     } catch (error) {

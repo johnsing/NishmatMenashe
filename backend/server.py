@@ -39,6 +39,7 @@ class User(BaseModel):
     email: str
     name: str
     picture: Optional[str] = None
+    role: str = "user"  # "user" or "admin"
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class UserSession(BaseModel):
@@ -139,6 +140,17 @@ async def get_current_user(authorization: Optional[str] = Header(None)) -> User:
     
     return User(**user)
 
+# ==================== Admin Config ====================
+
+ADMIN_EMAILS = {"tzurielsingson@gmail.com"}
+
+async def require_admin(authorization: Optional[str] = Header(None)) -> User:
+    """Ensure the current user is an admin"""
+    user = await get_current_user(authorization)
+    if user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return user
+
 # ==================== Auth Routes ====================
 
 @api_router.post("/auth/session")
@@ -157,17 +169,25 @@ async def create_session(session_req: SessionRequest):
         
         # Create or get user
         email = session_data["email"]
+        is_admin = email.lower() in {e.lower() for e in ADMIN_EMAILS}
         existing_user = await db.users.find_one({"email": email}, {"_id": 0})
         
         if existing_user:
             user_id = existing_user["user_id"]
+            # Upgrade to admin if email is in whitelist and role hasn't been set
+            if is_admin and existing_user.get("role") != "admin":
+                await db.users.update_one(
+                    {"user_id": user_id},
+                    {"$set": {"role": "admin"}}
+                )
         else:
             user_id = f"user_{uuid.uuid4().hex[:12]}"
             user = User(
                 user_id=user_id,
                 email=session_data["email"],
                 name=session_data["name"],
-                picture=session_data.get("picture")
+                picture=session_data.get("picture"),
+                role="admin" if is_admin else "user"
             )
             await db.users.insert_one(user.dict())
         
@@ -366,6 +386,309 @@ async def delete_bookmark(
         raise HTTPException(status_code=404, detail="Bookmark not found")
     
     return {"message": "Bookmark deleted"}
+
+# ==================== Admin Routes ====================
+
+# Admin Input Models
+class CategoryInput(BaseModel):
+    title: str
+    description: str
+    accent_color: str
+    order: int = 0
+
+class BookInput(BaseModel):
+    category_id: str
+    title: str
+    author: str
+    description: str
+    cover_color: str
+    order: int = 0
+
+class ChapterInput(BaseModel):
+    book_id: str
+    chapter_number: int
+    title: str
+
+class VerseInput(BaseModel):
+    chapter_id: str
+    verse_number: int
+    original_text: str
+    english_translation: str
+
+# --- Analytics ---
+@api_router.get("/admin/analytics")
+async def get_analytics(admin: User = None, authorization: Optional[str] = Header(None)):
+    """Get admin analytics dashboard data"""
+    await require_admin(authorization)
+    
+    total_users = await db.users.count_documents({})
+    total_categories = await db.categories.count_documents({})
+    total_books = await db.books.count_documents({})
+    total_chapters = await db.chapters.count_documents({})
+    total_verses = await db.verses.count_documents({})
+    total_bookmarks = await db.bookmarks.count_documents({})
+    admin_count = await db.users.count_documents({"role": "admin"})
+    
+    # Top bookmarked verses (aggregation)
+    pipeline = [
+        {"$group": {
+            "_id": "$verse_id",
+            "count": {"$sum": 1},
+            "book_title": {"$first": "$book_title"},
+            "chapter_title": {"$first": "$chapter_title"},
+            "verse_number": {"$first": "$verse_number"}
+        }},
+        {"$sort": {"count": -1}},
+        {"$limit": 5}
+    ]
+    top_bookmarked = await db.bookmarks.aggregate(pipeline).to_list(5)
+    top_bookmarked_clean = [
+        {
+            "verse_id": item["_id"],
+            "count": item["count"],
+            "book_title": item.get("book_title", ""),
+            "chapter_title": item.get("chapter_title", ""),
+            "verse_number": item.get("verse_number", 0),
+        }
+        for item in top_bookmarked
+    ]
+    
+    return {
+        "total_users": total_users,
+        "admin_count": admin_count,
+        "total_categories": total_categories,
+        "total_books": total_books,
+        "total_chapters": total_chapters,
+        "total_verses": total_verses,
+        "total_bookmarks": total_bookmarks,
+        "top_bookmarked": top_bookmarked_clean,
+    }
+
+# --- Users ---
+@api_router.get("/admin/users")
+async def list_users(authorization: Optional[str] = Header(None)):
+    """List all users"""
+    await require_admin(authorization)
+    
+    users = await db.users.find({}, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    return users
+
+# --- Categories CRUD ---
+@api_router.post("/admin/categories", response_model=Category)
+async def create_category(data: CategoryInput, authorization: Optional[str] = Header(None)):
+    await require_admin(authorization)
+    
+    category = Category(
+        category_id=f"cat_{uuid.uuid4().hex[:12]}",
+        **data.dict()
+    )
+    await db.categories.insert_one(category.dict())
+    return category
+
+@api_router.put("/admin/categories/{category_id}", response_model=Category)
+async def update_category(category_id: str, data: CategoryInput, authorization: Optional[str] = Header(None)):
+    await require_admin(authorization)
+    
+    result = await db.categories.update_one(
+        {"category_id": category_id},
+        {"$set": data.dict()}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Category not found")
+    
+    category = await db.categories.find_one({"category_id": category_id}, {"_id": 0})
+    return category
+
+@api_router.delete("/admin/categories/{category_id}")
+async def delete_category(category_id: str, authorization: Optional[str] = Header(None)):
+    await require_admin(authorization)
+    
+    result = await db.categories.delete_one({"category_id": category_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Category not found")
+    
+    # Also delete all books, chapters, verses under this category
+    books = await db.books.find({"category_id": category_id}, {"_id": 0}).to_list(1000)
+    for book in books:
+        chapters = await db.chapters.find({"book_id": book["book_id"]}, {"_id": 0}).to_list(1000)
+        for chapter in chapters:
+            await db.verses.delete_many({"chapter_id": chapter["chapter_id"]})
+        await db.chapters.delete_many({"book_id": book["book_id"]})
+    await db.books.delete_many({"category_id": category_id})
+    
+    return {"message": "Category and all descendants deleted"}
+
+# --- Books CRUD ---
+@api_router.post("/admin/books", response_model=Book)
+async def create_book(data: BookInput, authorization: Optional[str] = Header(None)):
+    await require_admin(authorization)
+    
+    book = Book(
+        book_id=f"book_{uuid.uuid4().hex[:12]}",
+        chapter_count=0,
+        **data.dict()
+    )
+    await db.books.insert_one(book.dict())
+    return book
+
+@api_router.put("/admin/books/{book_id}", response_model=Book)
+async def update_book(book_id: str, data: BookInput, authorization: Optional[str] = Header(None)):
+    await require_admin(authorization)
+    
+    result = await db.books.update_one(
+        {"book_id": book_id},
+        {"$set": data.dict()}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Book not found")
+    
+    book = await db.books.find_one({"book_id": book_id}, {"_id": 0})
+    return book
+
+@api_router.delete("/admin/books/{book_id}")
+async def delete_book(book_id: str, authorization: Optional[str] = Header(None)):
+    await require_admin(authorization)
+    
+    result = await db.books.delete_one({"book_id": book_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Book not found")
+    
+    # Delete chapters and verses
+    chapters = await db.chapters.find({"book_id": book_id}, {"_id": 0}).to_list(1000)
+    for chapter in chapters:
+        await db.verses.delete_many({"chapter_id": chapter["chapter_id"]})
+    await db.chapters.delete_many({"book_id": book_id})
+    
+    return {"message": "Book and all descendants deleted"}
+
+@api_router.get("/admin/books")
+async def list_all_books(authorization: Optional[str] = Header(None)):
+    """List all books for admin"""
+    await require_admin(authorization)
+    books = await db.books.find({}, {"_id": 0}).sort("order", 1).to_list(1000)
+    return books
+
+# --- Chapters CRUD ---
+@api_router.post("/admin/chapters", response_model=Chapter)
+async def create_chapter(data: ChapterInput, authorization: Optional[str] = Header(None)):
+    await require_admin(authorization)
+    
+    chapter = Chapter(
+        chapter_id=f"ch_{uuid.uuid4().hex[:12]}",
+        verse_count=0,
+        **data.dict()
+    )
+    await db.chapters.insert_one(chapter.dict())
+    
+    # Update book chapter count
+    total = await db.chapters.count_documents({"book_id": data.book_id})
+    await db.books.update_one(
+        {"book_id": data.book_id},
+        {"$set": {"chapter_count": total}}
+    )
+    
+    return chapter
+
+@api_router.put("/admin/chapters/{chapter_id}", response_model=Chapter)
+async def update_chapter(chapter_id: str, data: ChapterInput, authorization: Optional[str] = Header(None)):
+    await require_admin(authorization)
+    
+    result = await db.chapters.update_one(
+        {"chapter_id": chapter_id},
+        {"$set": data.dict()}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Chapter not found")
+    
+    chapter = await db.chapters.find_one({"chapter_id": chapter_id}, {"_id": 0})
+    return chapter
+
+@api_router.delete("/admin/chapters/{chapter_id}")
+async def delete_chapter(chapter_id: str, authorization: Optional[str] = Header(None)):
+    await require_admin(authorization)
+    
+    chapter = await db.chapters.find_one({"chapter_id": chapter_id}, {"_id": 0})
+    if not chapter:
+        raise HTTPException(status_code=404, detail="Chapter not found")
+    
+    await db.chapters.delete_one({"chapter_id": chapter_id})
+    await db.verses.delete_many({"chapter_id": chapter_id})
+    
+    # Update book chapter count
+    total = await db.chapters.count_documents({"book_id": chapter["book_id"]})
+    await db.books.update_one(
+        {"book_id": chapter["book_id"]},
+        {"$set": {"chapter_count": total}}
+    )
+    
+    return {"message": "Chapter and verses deleted"}
+
+@api_router.get("/admin/chapters")
+async def list_all_chapters(authorization: Optional[str] = Header(None)):
+    """List all chapters for admin"""
+    await require_admin(authorization)
+    chapters = await db.chapters.find({}, {"_id": 0}).sort([("book_id", 1), ("chapter_number", 1)]).to_list(1000)
+    return chapters
+
+# --- Verses CRUD ---
+@api_router.post("/admin/verses", response_model=Verse)
+async def create_verse(data: VerseInput, authorization: Optional[str] = Header(None)):
+    await require_admin(authorization)
+    
+    verse = Verse(
+        verse_id=f"v_{uuid.uuid4().hex[:12]}",
+        **data.dict()
+    )
+    await db.verses.insert_one(verse.dict())
+    
+    # Update chapter verse count
+    total = await db.verses.count_documents({"chapter_id": data.chapter_id})
+    await db.chapters.update_one(
+        {"chapter_id": data.chapter_id},
+        {"$set": {"verse_count": total}}
+    )
+    
+    return verse
+
+@api_router.put("/admin/verses/{verse_id}", response_model=Verse)
+async def update_verse(verse_id: str, data: VerseInput, authorization: Optional[str] = Header(None)):
+    await require_admin(authorization)
+    
+    result = await db.verses.update_one(
+        {"verse_id": verse_id},
+        {"$set": data.dict()}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Verse not found")
+    
+    verse = await db.verses.find_one({"verse_id": verse_id}, {"_id": 0})
+    return verse
+
+@api_router.delete("/admin/verses/{verse_id}")
+async def delete_verse(verse_id: str, authorization: Optional[str] = Header(None)):
+    await require_admin(authorization)
+    
+    verse = await db.verses.find_one({"verse_id": verse_id}, {"_id": 0})
+    if not verse:
+        raise HTTPException(status_code=404, detail="Verse not found")
+    
+    await db.verses.delete_one({"verse_id": verse_id})
+    
+    # Update chapter verse count
+    total = await db.verses.count_documents({"chapter_id": verse["chapter_id"]})
+    await db.chapters.update_one(
+        {"chapter_id": verse["chapter_id"]},
+        {"$set": {"verse_count": total}}
+    )
+    
+    return {"message": "Verse deleted"}
+
+@api_router.get("/admin/verses")
+async def list_all_verses(authorization: Optional[str] = Header(None)):
+    """List all verses for admin (grouped)"""
+    await require_admin(authorization)
+    verses = await db.verses.find({}, {"_id": 0}).sort([("chapter_id", 1), ("verse_number", 1)]).to_list(10000)
+    return verses
 
 # ==================== Data Seeding ====================
 

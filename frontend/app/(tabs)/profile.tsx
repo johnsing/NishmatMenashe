@@ -92,6 +92,26 @@ export default function ProfileScreen() {
         </View>
       </View>
 
+      {/* Admin Section (visible only to admins) */}
+      {user?.role === 'admin' && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Admin</Text>
+          <TouchableOpacity
+            style={styles.settingCard}
+            onPress={() => router.push('/admin')}
+            testID="admin-dashboard-button"
+          >
+            <View style={styles.settingRow}>
+              <View style={styles.settingInfo}>
+                <Ionicons name="shield-checkmark" size={24} color="#8B4513" style={styles.settingIcon} />
+                <Text style={styles.settingLabel}>Admin Dashboard</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#9A8A7A" />
+            </View>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* About Section */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>About</Text>

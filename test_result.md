@@ -328,6 +328,30 @@ frontend:
         agent: "main"
         comment: "Created bookmarks screen with list of saved verses, delete functionality, and navigation to chapters."
   
+  - task: "Admin Dashboard - Backend"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Added complete admin backend: (1) User model now has 'role' field ('user' or 'admin'), (2) Auto-admin role for whitelisted email tzurielsingson@gmail.com on login/existing user upgrade, (3) require_admin dependency (returns 403 for non-admin), (4) Full CRUD endpoints under /api/admin/: categories, books, chapters, verses (POST/PUT/DELETE), (5) GET /api/admin/users (list), (6) GET /api/admin/analytics (stats + top bookmarked verses aggregation), (7) Cascading deletes maintain data integrity."
+
+  - task: "Admin Dashboard - Frontend"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/app/admin/index.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Built complete admin UI accessed via Profile > Admin Dashboard button (visible only if user.role==='admin'). Screens: (1) Dashboard home with 3 stat cards + 5 management navigation cards + top popular verses, (2) Categories: FAB add, tap edit, delete with cascade warning, modal form with 8-color picker, (3) Books: category picker + all fields, (4) Chapters: book filter chips + book picker in form, (5) Verses: book filter + chapter picker + Hebrew RTL input + English input, (6) Users: avatar, name, email, join date, admin badge. AuthContext extended to include role. Admin button in Profile shows only for admins."
+
   - task: "Profile Screen"
     implemented: true
     working: "NA"
@@ -338,7 +362,7 @@ frontend:
     status_history:
       - working: "NA"
         agent: "main"
-        comment: "Created profile screen with user info, reading preferences (dark mode, font size), and logout functionality."
+        comment: "Updated profile screen: added Admin Dashboard section visible only when user.role === 'admin'. Section shows shield icon + 'Admin Dashboard' with chevron, navigates to /admin route."
   
   - task: "Tab Navigation"
     implemented: true
