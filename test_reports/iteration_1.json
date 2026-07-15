@@ -1,0 +1,36 @@
+{
+  "summary": "Frontend-only testing of Sacred Library redesign. Login screen renders correctly for unauthenticated users. Library screen (after auth token injection into localStorage) meets ALL requirements: single-column full-width landscape cards (358x140px on a 390px viewport), each showing ONLY the book icon and title (no author/description/chapter count), all 5 seeded books present (Bereishit, Shemot, Tehillim, Mishlei, Pirkei Avot) with distinct brown/tan color backgrounds, cards tappable and navigate to /book/{book_id} detail screen. Missing testID attributes on interactive components (blocks robust automated testing). Console shows two React Native web deprecation warnings ('shadow*' style props, 'props.pointerEvents').",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Library (tabs/index.tsx)", "issues": ["Card content layout is vertically stacked (icon on top, title below). Design still reads as landscape (wider than tall) and matches the reference intent, but if a true horizontal side-by-side (icon LEFT of title) layout is desired, set flexDirection: 'row' and alignItems: 'center' on bookCard."]}
+    ],
+    "react_native_issues": [
+      {"component": "StyleSheet.shadow*", "issue": "React Native Web deprecation warning: '\"shadow*\" style props are deprecated. Use \"boxShadow\"'. Occurs in multiple StyleSheet.create blocks (e.g., tabs/index.tsx bookCard, auth/login.tsx loginButton/iconContainer). Reference: /app/frontend/app/(tabs)/index.tsx:87-91 and /app/frontend/app/(auth)/login.tsx:54-58,84-88"},
+      {"component": "props.pointerEvents", "issue": "React Native Web deprecation warning: 'props.pointerEvents is deprecated. Use style.pointerEvents'. Likely emitted by expo-router / Tabs internal components. Non-blocking."}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Add testID props to interactive elements to enable automated testing: login button (testID='login-google-button'), book cards (testID={`book-card-${item.book_id}`}), FlatList (testID='library-list'), tab bar items.",
+    "Migrate deprecated 'shadow*' StyleSheet props to 'boxShadow' in /app/frontend/app/(tabs)/index.tsx (bookCard) and /app/frontend/app/(auth)/login.tsx (loginButton, iconContainer) to silence React Native Web warnings.",
+    "(Optional/clarification) Confirm with product whether library card should be truly horizontal (icon LEFT of title using flexDirection: 'row') or the current stacked-inside-landscape-card is acceptable. Current implementation places icon top-left with title below, which matches the reference screenshot behavior."
+  ],
+  "critical_code_review_comments": [
+    "No testID attributes anywhere in tabs/index.tsx, auth/login.tsx, or tabs/_layout.tsx - critical for automated QA and accessibility.",
+    "AuthContext.tsx uses process.env.EXPO_PUBLIC_BACKEND_URL correctly and reads session_id from URL for both web (query/hash) and mobile (deep link) OAuth flows - good.",
+    "Library screen correctly restricts card content to Ionicons book icon + title only; no author, description, or chapter_count rendered on cards (verified via DOM text inspection)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (not tested per request)", "frontend": "100% for the requested design verification"},
+  "seed_data_creation": "Created a temporary session (user_id=test_user_qa, token=TEST_TOKEN_*) in MongoDB to authenticate as an existing user, then verified via UI. Cleaned up: user + session deleted after testing.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "App uses Emergent Google OAuth. Real OAuth cannot be executed in headless testing. To QA authenticated screens: (1) Insert a user + session into MongoDB (collections: users, user_sessions with session_token, user_id, expires_at). (2) Because AsyncStorage on web maps to window.localStorage, inject via: localStorage.setItem('session_token', JSON.stringify(token)) then navigate to '/'. (3) Clean up seeded records afterward. Seed data: 5 books already seeded in MongoDB with cover_color values #8B7355 (Bereishit), #A0522D (Shemot), #CD853F (Tehillim), #D2691E (Mishlei), #B8860B (Pirkei Avot).",
+  "rca_of_issue": "N/A - no bug reported; this was a design-verification pass. The redesigned Library screen matches the requested spec: single-column FlatList (no numColumns), TouchableOpacity children with only Ionicons 'book' icon and item.title, per-item backgroundColor from item.cover_color, minHeight 140 (landscape), navigate to /book/{book_id} on press."
+}

@@ -39,20 +39,8 @@ export default function LibraryScreen() {
       onPress={() => router.push(`/book/${item.book_id}`)}
       activeOpacity={0.8}
     >
-      <View style={styles.bookContent}>
-        <Ionicons name="book" size={40} color="#fff" style={styles.bookIcon} />
-        <Text style={styles.bookTitle}>{item.title}</Text>
-        <Text style={styles.bookAuthor}>{item.author}</Text>
-        <Text style={styles.bookDescription} numberOfLines={2}>
-          {item.description}
-        </Text>
-        <View style={styles.bookFooter}>
-          <Ionicons name="list" size={14} color="rgba(255,255,255,0.8)" />
-          <Text style={styles.chapterCount}>
-            {item.chapter_count} {item.chapter_count === 1 ? 'Chapter' : 'Chapters'}
-          </Text>
-        </View>
-      </View>
+      <Ionicons name="book" size={48} color="#fff" style={styles.bookIcon} />
+      <Text style={styles.bookTitle}>{item.title}</Text>
     </TouchableOpacity>
   );
 
@@ -71,8 +59,6 @@ export default function LibraryScreen() {
         renderItem={renderBook}
         keyExtractor={(item) => item.book_id}
         contentContainerStyle={styles.listContent}
-        numColumns={2}
-        columnWrapperStyle={styles.row}
       />
     </View>
   );
@@ -92,55 +78,26 @@ const styles = StyleSheet.create({
   listContent: {
     padding: 16,
   },
-  row: {
-    justifyContent: 'space-between',
-  },
   bookCard: {
-    flex: 1,
-    margin: 8,
     borderRadius: 16,
-    overflow: 'hidden',
+    padding: 20,
+    marginBottom: 16,
+    minHeight: 140,
+    justifyContent: 'space-between',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 4,
-    minHeight: 220,
-  },
-  bookContent: {
-    padding: 16,
-    flex: 1,
   },
   bookIcon: {
-    marginBottom: 12,
-    opacity: 0.9,
-  },
-  bookTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#fff',
-    marginBottom: 4,
-    fontFamily: 'Georgia',
-  },
-  bookAuthor: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.9)',
+    opacity: 0.95,
     marginBottom: 8,
   },
-  bookDescription: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.8)',
-    lineHeight: 18,
-    flex: 1,
-  },
-  bookFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  chapterCount: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.8)',
-    marginLeft: 4,
+  bookTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#fff',
+    fontFamily: 'Georgia',
   },
 });

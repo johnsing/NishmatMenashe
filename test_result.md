@@ -243,6 +243,9 @@ frontend:
       - working: "NA"
         agent: "main"
         comment: "Created library screen with 2-column grid of books, color-coded covers, book icons, and chapter counts."
+      - working: "NA"
+        agent: "main"
+        comment: "USER REQUESTED DESIGN CHANGE: Updated library screen to use single-column full-width cards with landscape orientation. Cards now show only book icon and title (larger, more prominent). Removed author, description, and chapter count from card. Needs re-testing to verify new design matches user requirement."
   
   - task: "Book Detail Screen"
     implemented: true
