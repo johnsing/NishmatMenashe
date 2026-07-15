@@ -2,45 +2,47 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator }
 import { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { apiClient } from '@/src/api/client';
-import { Ionicons } from '@expo/vector-icons';
 
-interface Book {
-  book_id: string;
+interface Category {
+  category_id: string;
   title: string;
-  author: string;
   description: string;
-  chapter_count: number;
-  cover_color: string;
+  accent_color: string;
+  order: number;
 }
 
 export default function LibraryScreen() {
-  const [books, setBooks] = useState<Book[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    loadBooks();
+    loadCategories();
   }, []);
 
-  const loadBooks = async () => {
+  const loadCategories = async () => {
     try {
-      const data = await apiClient.get<Book[]>('/api/books');
-      setBooks(data);
+      const data = await apiClient.get<Category[]>('/api/categories');
+      setCategories(data);
     } catch (error) {
-      console.error('Error loading books:', error);
+      console.error('Error loading categories:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const renderBook = ({ item }: { item: Book }) => (
+  const renderCategory = ({ item }: { item: Category }) => (
     <TouchableOpacity
-      style={[styles.bookCard, { backgroundColor: item.cover_color }]}
-      onPress={() => router.push(`/book/${item.book_id}`)}
-      activeOpacity={0.8}
+      style={styles.categoryCard}
+      onPress={() => router.push(`/category/${item.category_id}`)}
+      activeOpacity={0.7}
+      testID={`category-card-${item.category_id}`}
     >
-      <Ionicons name="book" size={48} color="#fff" style={styles.bookIcon} />
-      <Text style={styles.bookTitle}>{item.title}</Text>
+      <View style={[styles.accentBar, { backgroundColor: item.accent_color }]} />
+      <Text style={styles.categoryTitle}>{item.title}</Text>
+      <Text style={styles.categoryDescription} numberOfLines={4}>
+        {item.description}
+      </Text>
     </TouchableOpacity>
   );
 
@@ -55,10 +57,12 @@ export default function LibraryScreen() {
   return (
     <View style={styles.container}>
       <FlatList
-        data={books}
-        renderItem={renderBook}
-        keyExtractor={(item) => item.book_id}
+        data={categories}
+        renderItem={renderCategory}
+        keyExtractor={(item) => item.category_id}
         contentContainerStyle={styles.listContent}
+        numColumns={2}
+        columnWrapperStyle={styles.row}
       />
     </View>
   );
@@ -76,28 +80,33 @@ const styles = StyleSheet.create({
     backgroundColor: '#FAF8F3',
   },
   listContent: {
-    padding: 16,
+    padding: 12,
   },
-  bookCard: {
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
-    minHeight: 140,
+  row: {
     justifyContent: 'space-between',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
+    gap: 12,
   },
-  bookIcon: {
-    opacity: 0.95,
-    marginBottom: 8,
+  categoryCard: {
+    flex: 1,
+    marginBottom: 20,
+    paddingTop: 16,
   },
-  bookTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#fff',
+  accentBar: {
+    height: 3,
+    width: '100%',
+    marginBottom: 16,
+    borderRadius: 1.5,
+  },
+  categoryTitle: {
+    fontSize: 26,
+    fontWeight: '400',
+    color: '#3A2F26',
+    marginBottom: 10,
     fontFamily: 'Georgia',
+  },
+  categoryDescription: {
+    fontSize: 13,
+    lineHeight: 20,
+    color: '#6A5A4A',
   },
 });

@@ -66,11 +66,20 @@ class Chapter(BaseModel):
 
 class Book(BaseModel):
     book_id: str
+    category_id: str
     title: str
     author: str
     description: str
     chapter_count: int
     cover_color: str
+    order: int = 0
+
+class Category(BaseModel):
+    category_id: str
+    title: str
+    description: str
+    accent_color: str
+    order: int = 0
 
 class Bookmark(BaseModel):
     bookmark_id: str = Field(default_factory=lambda: f"bookmark_{uuid.uuid4().hex[:12]}")
@@ -209,6 +218,32 @@ async def logout(authorization: Optional[str] = Header(None)):
 
 # ==================== Library Routes ====================
 
+@api_router.get("/categories", response_model=List[Category])
+async def get_categories(authorization: Optional[str] = Header(None)):
+    """Get all categories in the library"""
+    await get_current_user(authorization)
+    
+    categories = await db.categories.find({}, {"_id": 0}).sort("order", 1).to_list(100)
+    return categories
+
+@api_router.get("/categories/{category_id}/books", response_model=List[Book])
+async def get_books_by_category(category_id: str, authorization: Optional[str] = Header(None)):
+    """Get all books in a category"""
+    await get_current_user(authorization)
+    
+    books = await db.books.find({"category_id": category_id}, {"_id": 0}).sort("order", 1).to_list(100)
+    return books
+
+@api_router.get("/categories/{category_id}", response_model=Category)
+async def get_category(category_id: str, authorization: Optional[str] = Header(None)):
+    """Get a single category"""
+    await get_current_user(authorization)
+    
+    category = await db.categories.find_one({"category_id": category_id}, {"_id": 0})
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
+    return category
+
 @api_router.get("/books", response_model=List[Book])
 async def get_books(authorization: Optional[str] = Header(None)):
     """Get all books in the library"""
@@ -339,51 +374,123 @@ async def seed_data():
     """Seed sample sacred texts (idempotent)"""
     
     # Check if already seeded
-    existing_books = await db.books.count_documents({})
-    if existing_books > 0:
+    existing_categories = await db.categories.count_documents({})
+    if existing_categories > 0:
         return {"message": "Data already seeded"}
     
-    # Sample Books
+    # 8 Categories of Jewish Sacred Texts
+    categories = [
+        {
+            "category_id": "cat_tanakh",
+            "title": "Tanakh",
+            "description": "Torah, Prophets, and Writings, which together make up the Hebrew Bible, Judaism's foundational text.",
+            "accent_color": "#2C5F5D",
+            "order": 1
+        },
+        {
+            "category_id": "cat_mishnah",
+            "title": "Mishnah",
+            "description": "First major work of rabbinic literature, compiled around 200 CE, documenting a multiplicity of legal opinions in the oral tradition.",
+            "accent_color": "#D4A017",
+            "order": 2
+        },
+        {
+            "category_id": "cat_talmud",
+            "title": "Talmud",
+            "description": "Generations of rabbinic debate about law, ethics, and Bible, structured as commentary on the Mishnah with stories interwoven.",
+            "accent_color": "#6B9AC4",
+            "order": 3
+        },
+        {
+            "category_id": "cat_midrash",
+            "title": "Midrash",
+            "description": "Interpretations and elaborations upon biblical texts, including stories, parables, and legal deductions.",
+            "accent_color": "#2E7D32",
+            "order": 4
+        },
+        {
+            "category_id": "cat_halakhah",
+            "title": "Halakhah",
+            "description": "Legal works providing guidance on all aspects of Jewish life. Rooted in past sources and growing to address changing realities.",
+            "accent_color": "#8B1A1A",
+            "order": 5
+        },
+        {
+            "category_id": "cat_kabbalah",
+            "title": "Kabbalah",
+            "description": "Mystical works addressing topics like God's attributes and the relationship between God's eternality and the finite universe.",
+            "accent_color": "#1A237E",
+            "order": 6
+        },
+        {
+            "category_id": "cat_liturgy",
+            "title": "Liturgy",
+            "description": "Prayers, poems, and ritual texts, like Siddur and Haggadah, recited in daily worship or at specific occasions.",
+            "accent_color": "#AD1457",
+            "order": 7
+        },
+        {
+            "category_id": "cat_jewish_thought",
+            "title": "Jewish Thought",
+            "description": "Jewish philosophy and theology, ranging from medieval to contemporary, analyzing topics like free will and chosenness.",
+            "accent_color": "#8B1A1A",
+            "order": 8
+        }
+    ]
+    
+    await db.categories.insert_many(categories)
+    
+    # Books - Five Books of Moses (Torah) under Tanakh
     books = [
         {
-            "book_id": "book_1",
-            "title": "Bereishit (Genesis)",
-            "author": "Traditional",
+            "book_id": "book_bereishit",
+            "category_id": "cat_tanakh",
+            "title": "Bereishit",
+            "author": "Genesis",
             "description": "The first book of the Torah, beginning with Creation and ending with the descent to Egypt.",
             "chapter_count": 3,
-            "cover_color": "#8B7355"
+            "cover_color": "#8B7355",
+            "order": 1
         },
         {
-            "book_id": "book_2",
-            "title": "Shemot (Exodus)",
-            "author": "Traditional",
+            "book_id": "book_shemot",
+            "category_id": "cat_tanakh",
+            "title": "Shemot",
+            "author": "Exodus",
             "description": "The story of liberation from Egypt and the giving of the Torah at Sinai.",
             "chapter_count": 3,
-            "cover_color": "#A0522D"
+            "cover_color": "#A0522D",
+            "order": 2
         },
         {
-            "book_id": "book_3",
-            "title": "Tehillim (Psalms)",
-            "author": "King David",
-            "description": "Sacred poems and songs of praise, lament, and thanksgiving.",
-            "chapter_count": 3,
-            "cover_color": "#CD853F"
-        },
-        {
-            "book_id": "book_4",
-            "title": "Mishlei (Proverbs)",
-            "author": "King Solomon",
-            "description": "Wisdom teachings on righteous living and moral conduct.",
+            "book_id": "book_vayikra",
+            "category_id": "cat_tanakh",
+            "title": "Vayikra",
+            "author": "Leviticus",
+            "description": "Laws of sacrifices, priesthood, ritual purity, and holiness for the community of Israel.",
             "chapter_count": 2,
-            "cover_color": "#D2691E"
+            "cover_color": "#CD853F",
+            "order": 3
         },
         {
-            "book_id": "book_5",
-            "title": "Pirkei Avot (Ethics of the Fathers)",
-            "author": "Mishnaic Sages",
-            "description": "Ethical teachings and maxims from the early rabbis.",
+            "book_id": "book_bamidbar",
+            "category_id": "cat_tanakh",
+            "title": "Bamidbar",
+            "author": "Numbers",
+            "description": "The wanderings of Israel through the wilderness on the journey to the Promised Land.",
             "chapter_count": 2,
-            "cover_color": "#B8860B"
+            "cover_color": "#D2691E",
+            "order": 4
+        },
+        {
+            "book_id": "book_devarim",
+            "category_id": "cat_tanakh",
+            "title": "Devarim",
+            "author": "Deuteronomy",
+            "description": "Moses' final addresses to the Israelites, reviewing the laws and preparing them to enter the land.",
+            "chapter_count": 2,
+            "cover_color": "#B8860B",
+            "order": 5
         }
     ]
     
@@ -393,10 +500,10 @@ async def seed_data():
     chapters_data = []
     verses_data = []
     
-    # Book 1: Bereishit - Chapter 1
+    # Bereishit - Chapter 1: Creation
     chapters_data.append({
-        "chapter_id": "ch_1_1",
-        "book_id": "book_1",
+        "chapter_id": "ch_bereishit_1",
+        "book_id": "book_bereishit",
         "chapter_number": 1,
         "title": "Creation",
         "verse_count": 5
@@ -404,46 +511,46 @@ async def seed_data():
     
     verses_data.extend([
         {
-            "verse_id": "v_1_1_1",
-            "chapter_id": "ch_1_1",
+            "verse_id": "v_bereishit_1_1",
+            "chapter_id": "ch_bereishit_1",
             "verse_number": 1,
             "original_text": "בְּרֵאשִׁית בָּרָא אֱלֹהִים אֵת הַשָּׁמַיִם וְאֵת הָאָרֶץ",
             "english_translation": "In the beginning God created the heaven and the earth."
         },
         {
-            "verse_id": "v_1_1_2",
-            "chapter_id": "ch_1_1",
+            "verse_id": "v_bereishit_1_2",
+            "chapter_id": "ch_bereishit_1",
             "verse_number": 2,
             "original_text": "וְהָאָרֶץ הָיְתָה תֹהוּ וָבֹהוּ וְחֹשֶׁךְ עַל־פְּנֵי תְהוֹם",
             "english_translation": "And the earth was without form and void, and darkness was upon the face of the deep."
         },
         {
-            "verse_id": "v_1_1_3",
-            "chapter_id": "ch_1_1",
+            "verse_id": "v_bereishit_1_3",
+            "chapter_id": "ch_bereishit_1",
             "verse_number": 3,
             "original_text": "וַיֹּאמֶר אֱלֹהִים יְהִי אוֹר וַיְהִי־אוֹר",
             "english_translation": "And God said: Let there be light. And there was light."
         },
         {
-            "verse_id": "v_1_1_4",
-            "chapter_id": "ch_1_1",
+            "verse_id": "v_bereishit_1_4",
+            "chapter_id": "ch_bereishit_1",
             "verse_number": 4,
             "original_text": "וַיַּרְא אֱלֹהִים אֶת־הָאוֹר כִּי־טוֹב",
             "english_translation": "And God saw the light, that it was good."
         },
         {
-            "verse_id": "v_1_1_5",
-            "chapter_id": "ch_1_1",
+            "verse_id": "v_bereishit_1_5",
+            "chapter_id": "ch_bereishit_1",
             "verse_number": 5,
             "original_text": "וַיִּקְרָא אֱלֹהִים לָאוֹר יוֹם וְלַחֹשֶׁךְ קָרָא לָיְלָה",
             "english_translation": "And God called the light Day, and the darkness He called Night."
         }
     ])
     
-    # Book 1: Bereishit - Chapter 2
+    # Bereishit - Chapter 2: The Garden
     chapters_data.append({
-        "chapter_id": "ch_1_2",
-        "book_id": "book_1",
+        "chapter_id": "ch_bereishit_2",
+        "book_id": "book_bereishit",
         "chapter_number": 2,
         "title": "The Garden",
         "verse_count": 3
@@ -451,32 +558,65 @@ async def seed_data():
     
     verses_data.extend([
         {
-            "verse_id": "v_1_2_1",
-            "chapter_id": "ch_1_2",
+            "verse_id": "v_bereishit_2_1",
+            "chapter_id": "ch_bereishit_2",
             "verse_number": 1,
             "original_text": "וַיְכֻלּוּ הַשָּׁמַיִם וְהָאָרֶץ וְכָל־צְבָאָם",
             "english_translation": "And the heaven and the earth were finished, and all their host."
         },
         {
-            "verse_id": "v_1_2_2",
-            "chapter_id": "ch_1_2",
+            "verse_id": "v_bereishit_2_2",
+            "chapter_id": "ch_bereishit_2",
             "verse_number": 2,
             "original_text": "וַיְכַל אֱלֹהִים בַּיּוֹם הַשְּׁבִיעִי מְלַאכְתּוֹ אֲשֶׁר עָשָׂה",
             "english_translation": "And on the seventh day God finished His work which He had made."
         },
         {
-            "verse_id": "v_1_2_3",
-            "chapter_id": "ch_1_2",
+            "verse_id": "v_bereishit_2_3",
+            "chapter_id": "ch_bereishit_2",
             "verse_number": 3,
             "original_text": "וַיְבָרֶךְ אֱלֹהִים אֶת־יוֹם הַשְּׁבִיעִי וַיְקַדֵּשׁ אֹתוֹ",
             "english_translation": "And God blessed the seventh day, and hallowed it."
         }
     ])
     
-    # Book 2: Shemot - Chapters
+    # Bereishit - Chapter 3: The Fall
     chapters_data.append({
-        "chapter_id": "ch_2_1",
-        "book_id": "book_2",
+        "chapter_id": "ch_bereishit_3",
+        "book_id": "book_bereishit",
+        "chapter_number": 3,
+        "title": "The Fall",
+        "verse_count": 3
+    })
+    
+    verses_data.extend([
+        {
+            "verse_id": "v_bereishit_3_1",
+            "chapter_id": "ch_bereishit_3",
+            "verse_number": 1,
+            "original_text": "וְהַנָּחָשׁ הָיָה עָרוּם מִכֹּל חַיַּת הַשָּׂדֶה",
+            "english_translation": "Now the serpent was more subtle than any beast of the field."
+        },
+        {
+            "verse_id": "v_bereishit_3_2",
+            "chapter_id": "ch_bereishit_3",
+            "verse_number": 2,
+            "original_text": "וַתֹּאמֶר הָאִשָּׁה אֶל־הַנָּחָשׁ מִפְּרִי עֵץ־הַגָּן נֹאכֵל",
+            "english_translation": "And the woman said unto the serpent: Of the fruit of the trees of the garden we may eat."
+        },
+        {
+            "verse_id": "v_bereishit_3_3",
+            "chapter_id": "ch_bereishit_3",
+            "verse_number": 3,
+            "original_text": "וּמִפְּרִי הָעֵץ אֲשֶׁר בְּתוֹךְ־הַגָּן אָמַר אֱלֹהִים לֹא תֹאכְלוּ מִמֶּנּוּ",
+            "english_translation": "But of the fruit of the tree which is in the midst of the garden, God hath said: Ye shall not eat of it."
+        }
+    ])
+    
+    # Shemot - Chapter 1: Names
+    chapters_data.append({
+        "chapter_id": "ch_shemot_1",
+        "book_id": "book_shemot",
         "chapter_number": 1,
         "title": "Names",
         "verse_count": 3
@@ -484,79 +624,70 @@ async def seed_data():
     
     verses_data.extend([
         {
-            "verse_id": "v_2_1_1",
-            "chapter_id": "ch_2_1",
+            "verse_id": "v_shemot_1_1",
+            "chapter_id": "ch_shemot_1",
             "verse_number": 1,
             "original_text": "וְאֵלֶּה שְׁמוֹת בְּנֵי יִשְׂרָאֵל הַבָּאִים מִצְרָיְמָה",
             "english_translation": "Now these are the names of the children of Israel who came into Egypt."
         },
         {
-            "verse_id": "v_2_1_2",
-            "chapter_id": "ch_2_1",
+            "verse_id": "v_shemot_1_2",
+            "chapter_id": "ch_shemot_1",
             "verse_number": 2,
             "original_text": "רְאוּבֵן שִׁמְעוֹן לֵוִי וִיהוּדָה",
             "english_translation": "Reuben, Simeon, Levi, and Judah."
         },
         {
-            "verse_id": "v_2_1_3",
-            "chapter_id": "ch_2_1",
+            "verse_id": "v_shemot_1_3",
+            "chapter_id": "ch_shemot_1",
             "verse_number": 3,
             "original_text": "יִשָּׂשכָר זְבוּלֻן וּבִנְיָמִן",
             "english_translation": "Issachar, Zebulun, and Benjamin."
         }
     ])
     
-    # Book 3: Tehillim (Psalms)
+    # Shemot - Chapter 3: Burning Bush
     chapters_data.append({
-        "chapter_id": "ch_3_1",
-        "book_id": "book_3",
-        "chapter_number": 1,
-        "title": "Psalm 1",
-        "verse_count": 4
+        "chapter_id": "ch_shemot_3",
+        "book_id": "book_shemot",
+        "chapter_number": 3,
+        "title": "The Burning Bush",
+        "verse_count": 3
     })
     
     verses_data.extend([
         {
-            "verse_id": "v_3_1_1",
-            "chapter_id": "ch_3_1",
+            "verse_id": "v_shemot_3_1",
+            "chapter_id": "ch_shemot_3",
             "verse_number": 1,
-            "original_text": "אַשְׁרֵי־הָאִישׁ אֲשֶׁר לֹא הָלַךְ בַּעֲצַת רְשָׁעִים",
-            "english_translation": "Happy is the man who has not walked in the counsel of the wicked."
+            "original_text": "וּמֹשֶׁה הָיָה רֹעֶה אֶת־צֹאן יִתְרוֹ חֹתְנוֹ כֹּהֵן מִדְיָן",
+            "english_translation": "Now Moses was keeping the flock of Jethro his father-in-law, the priest of Midian."
         },
         {
-            "verse_id": "v_3_1_2",
-            "chapter_id": "ch_3_1",
+            "verse_id": "v_shemot_3_2",
+            "chapter_id": "ch_shemot_3",
             "verse_number": 2,
-            "original_text": "כִּי אִם בְּתוֹרַת יְהוָה חֶפְצוֹ",
-            "english_translation": "But his delight is in the law of the Lord."
+            "original_text": "וַיֵּרָא מַלְאַךְ יְהוָה אֵלָיו בְּלַבַּת־אֵשׁ מִתּוֹךְ הַסְּנֶה",
+            "english_translation": "And the angel of the Lord appeared unto him in a flame of fire out of the midst of a bush."
         },
         {
-            "verse_id": "v_3_1_3",
-            "chapter_id": "ch_3_1",
+            "verse_id": "v_shemot_3_3",
+            "chapter_id": "ch_shemot_3",
             "verse_number": 3,
-            "original_text": "וְהָיָה כְּעֵץ שָׁתוּל עַל־פַּלְגֵי מָיִם",
-            "english_translation": "And he shall be like a tree planted by streams of water."
-        },
-        {
-            "verse_id": "v_3_1_4",
-            "chapter_id": "ch_3_1",
-            "verse_number": 4,
-            "original_text": "לֹא־כֵן הָרְשָׁעִים כִּי אִם־כַּמֹּץ אֲשֶׁר־תִּדְּפֶנּוּ רוּחַ",
-            "english_translation": "Not so the wicked; they are like chaff that the wind drives away."
+            "original_text": "וַיֹּאמֶר מֹשֶׁה אָסֻרָה־נָּא וְאֶרְאֶה אֶת־הַמַּרְאֶה הַגָּדֹל הַזֶּה",
+            "english_translation": "And Moses said: I will turn aside now, and see this great sight."
         }
     ])
     
-    # Add more sample chapters for remaining books
+    # Placeholder chapters for other books
     chapters_data.extend([
-        {"chapter_id": "ch_1_3", "book_id": "book_1", "chapter_number": 3, "title": "The Fall", "verse_count": 0},
-        {"chapter_id": "ch_2_2", "book_id": "book_2", "chapter_number": 2, "title": "Moses", "verse_count": 0},
-        {"chapter_id": "ch_2_3", "book_id": "book_2", "chapter_number": 3, "title": "Burning Bush", "verse_count": 0},
-        {"chapter_id": "ch_3_2", "book_id": "book_3", "chapter_number": 2, "title": "Psalm 23", "verse_count": 0},
-        {"chapter_id": "ch_3_3", "book_id": "book_3", "chapter_number": 3, "title": "Psalm 100", "verse_count": 0},
-        {"chapter_id": "ch_4_1", "book_id": "book_4", "chapter_number": 1, "title": "Purpose", "verse_count": 0},
-        {"chapter_id": "ch_4_2", "book_id": "book_4", "chapter_number": 2, "title": "Wisdom", "verse_count": 0},
-        {"chapter_id": "ch_5_1", "book_id": "book_5", "chapter_number": 1, "title": "Chapter 1", "verse_count": 0},
-        {"chapter_id": "ch_5_2", "book_id": "book_5", "chapter_number": 2, "title": "Chapter 2", "verse_count": 0}
+        {"chapter_id": "ch_shemot_2", "book_id": "book_shemot", "chapter_number": 2, "title": "Moses' Birth", "verse_count": 0},
+        {"chapter_id": "ch_vayikra_1", "book_id": "book_vayikra", "chapter_number": 1, "title": "Offerings", "verse_count": 0},
+        {"chapter_id": "ch_vayikra_2", "book_id": "book_vayikra", "chapter_number": 2, "title": "Meal Offerings", "verse_count": 0},
+        {"chapter_id": "ch_bamidbar_1", "book_id": "book_bamidbar", "chapter_number": 1, "title": "The Census", "verse_count": 0},
+        {"chapter_id": "ch_bamidbar_2", "book_id": "book_bamidbar", "chapter_number": 2, "title": "The Camp", "verse_count": 0},
+        {"chapter_id": "ch_devarim_1", "book_id": "book_devarim", "chapter_number": 1, "title": "Moses' Address", "verse_count": 0},
+        {"chapter_id": "ch_devarim_2", "book_id": "book_devarim", "chapter_number": 2, "title": "Review of Laws", "verse_count": 0}
     ])
     
     await db.chapters.insert_many(chapters_data)
@@ -570,7 +701,7 @@ async def seed_data():
     await db.user_sessions.create_index("expires_at", expireAfterSeconds=0)
     await db.verses.create_index([("original_text", "text"), ("english_translation", "text")])
     
-    return {"message": "Sample data seeded successfully", "books": len(books)}
+    return {"message": "Sample data seeded successfully", "categories": len(categories), "books": len(books)}
 
 # Include the router in the main app
 app.include_router(api_router)

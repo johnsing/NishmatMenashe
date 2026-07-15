@@ -234,21 +234,48 @@ frontend:
   
   - task: "Library Screen (Books Grid)"
     implemented: true
-    working: true
+    working: "NA"
     file: "/app/frontend/app/(tabs)/index.tsx"
     stuck_count: 0
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Created library screen with 2-column grid of books, color-coded covers, book icons, and chapter counts."
       - working: "NA"
         agent: "main"
-        comment: "USER REQUESTED DESIGN CHANGE: Updated library screen to use single-column full-width cards with landscape orientation. Cards now show only book icon and title (larger, more prominent). Removed author, description, and chapter count from card. Needs re-testing to verify new design matches user requirement."
+        comment: "USER REQUESTED DESIGN CHANGE: Updated library screen to use single-column full-width cards with landscape orientation."
       - working: true
         agent: "testing"
-        comment: "VERIFIED PASSING: Library screen now renders single-column full-width landscape cards (358x140px). Cards show ONLY book icon + title. All 5 books visible with distinct brown/tan colors. Cards tappable and navigate correctly. Non-blocking: missing testIDs, RN Web shadow deprecation warnings."
+        comment: "VERIFIED PASSING: Library screen renders correctly as single-column full-width landscape cards."
+      - working: "NA"
+        agent: "main"
+        comment: "MAJOR RESTRUCTURE: Library now shows 8 CATEGORIES (Tanakh, Mishnah, Talmud, Midrash, Halakhah, Kabbalah, Liturgy, Jewish Thought) in a 2-column grid. Each category has a colored top-bar accent, serif title, and description text. Tapping a category navigates to /category/[id] which shows books in that category. Tanakh now contains the 5 Books of Moses (Bereishit, Shemot, Vayikra, Bamidbar, Devarim)."
+
+  - task: "Category Detail Screen"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/app/category/[id].tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "NEW SCREEN: Shows category header (accent bar, title, description) and list of books in that category. Books shown as landscape cards with icon, title, and author (English name). Empty state for categories without books yet."
+
+  - task: "Categories API"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "NEW ENDPOINTS: GET /api/categories (list all), GET /api/categories/{id} (single), GET /api/categories/{id}/books (books in category). Seeded 8 categories with distinct accent colors."
   
   - task: "Book Detail Screen"
     implemented: true
