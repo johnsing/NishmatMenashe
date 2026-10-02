@@ -2,9 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import { Platform } from 'react-native';
-import { storage } from '@/src/utils/storage';
-
-const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+import { supabase } from '@/src/lib/supabase';
 
 interface User {
   user_id: string;
@@ -17,165 +15,136 @@ interface User {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  error: string | null;
   login: () => Promise<void>;
   logout: () => Promise<void>;
+  clearError: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function mapSessionUser(sessionUser: any, role?: string): User {
+  return {
+    user_id: sessionUser.id,
+    email: sessionUser.email ?? '',
+    name: sessionUser.user_metadata?.full_name ?? sessionUser.email ?? '',
+    picture: sessionUser.user_metadata?.avatar_url ?? undefined,
+    role,
+  };
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Check existing session on mount
+  // Fetch the user's role from the profiles table (RLS allows own row)
+  const fetchRole = async (userId: string): Promise<string | undefined> => {
+    const { data } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', userId)
+      .single();
+    return data?.role;
+  };
+
   useEffect(() => {
-    checkExistingSession();
-    
-    // Web: Check for session_id in URL on mount
-    if (Platform.OS === 'web') {
-      const hash = window.location.hash;
-      const search = window.location.search;
-      
-      let sessionId = null;
-      if (hash.includes('session_id=')) {
-        sessionId = hash.split('session_id=')[1]?.split('&')[0];
-      } else if (search.includes('session_id=')) {
-        sessionId = new URLSearchParams(search).get('session_id');
+    // Initial session restore
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session?.user) {
+        const role = await fetchRole(session.user.id);
+        setUser(mapSessionUser(session.user, role));
       }
-      
-      if (sessionId) {
-        processSessionId(sessionId);
-        // Clean URL
-        window.history.replaceState(null, '', window.location.pathname);
+      setLoading(false);
+    });
+
+    // React to sign-in / sign-out / token refresh
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (session?.user) {
+          const role = await fetchRole(session.user.id);
+          setUser(mapSessionUser(session.user, role));
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
+        }
+        setLoading(false);
       }
-    }
-    
-    // Mobile: Handle deep links
+    );
+
+    // Mobile deep link (cold start): parse access tokens from the OAuth redirect
     if (Platform.OS !== 'web') {
-      // Check initial URL (cold start)
       Linking.getInitialURL().then((url) => {
-        if (url) handleDeepLink(url);
+        if (url) handleAuthUrl(url);
       });
-      
-      // Listen for hot links
       const subscription = Linking.addEventListener('url', (event) => {
-        handleDeepLink(event.url);
+        handleAuthUrl(event.url);
       });
-      
-      return () => subscription.remove();
+      return () => {
+        subscription.remove();
+        authListener.subscription.unsubscribe();
+      };
     }
+
+    return () => authListener.subscription.unsubscribe();
   }, []);
 
-  const checkExistingSession = async () => {
-    try {
-      const token = await storage.secureGet('session_token', null);
-      
-      if (token) {
-        const response = await fetch(`${API_URL}/api/auth/me`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        
-        if (response.ok) {
-          const userData = await response.json();
-          setUser(userData);
-        } else {
-          // Invalid token, clear it
-          await storage.secureRemove('session_token');
-        }
-      }
-    } catch (error) {
-      console.error('Error checking session:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDeepLink = (url: string) => {
-    const parsed = Linking.parse(url);
-    const sessionId = parsed.queryParams?.session_id as string;
-    
-    if (sessionId) {
-      processSessionId(sessionId);
-    }
-  };
-
-  const processSessionId = async (sessionId: string) => {
-    try {
-      const response = await fetch(`${API_URL}/api/auth/session`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ session_token: sessionId })
+  const handleAuthUrl = async (url: string) => {
+    // Tokens arrive in the URL fragment: ...#access_token=...&refresh_token=...
+    const fragment = url.split('#')[1] ?? '';
+    const params = new URLSearchParams(fragment);
+    const accessToken = params.get('access_token');
+    const refreshToken = params.get('refresh_token');
+    if (accessToken && refreshToken) {
+      const { error } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
       });
-      
-      if (response.ok) {
-        const data = await response.json();
-        await storage.secureSet('session_token', data.session_token);
-        setUser({
-          user_id: data.user_id,
-          email: data.email,
-          name: data.name,
-          picture: data.picture,
-          role: data.role,
-        });
-      }
-    } catch (error) {
-      console.error('Error processing session:', error);
+      if (error) setError('Sign-in failed. Please try again.');
     }
   };
 
   const login = async () => {
+    setError(null);
     try {
-      const redirectUrl = Platform.OS === 'web'
-        ? window.location.origin + '/'
-        : Linking.createURL('');
-      
-      const authUrl = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
-      
-      if (Platform.OS === 'web') {
-        window.location.href = authUrl;
-      } else {
-        const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUrl);
-        
-        if (result.type === 'success' && result.url) {
-          const parsed = Linking.parse(result.url);
-          const sessionId = parsed.queryParams?.session_id as string;
-          
-          if (sessionId) {
-            await processSessionId(sessionId);
-          }
-        }
+      const redirectTo = Platform.OS === 'web'
+        ? window.location.origin
+        : Linking.createURL('auth-callback');
+
+      const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo, skipBrowserRedirect: true },
+      });
+
+      if (oauthError || !data?.url) {
+        setError('Could not start sign-in. Please try again.');
+        return;
       }
-    } catch (error) {
-      console.error('Login error:', error);
+
+      if (Platform.OS === 'web') {
+        window.location.href = data.url;
+      } else {
+        const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+        if (result.type === 'success') {
+          await handleAuthUrl(result.url);
+        }
+        // 'cancel' = user closed the sheet — stay on the login screen, no error
+      }
+    } catch (err) {
+      console.error('Login error:', err);
+      setError('Could not start sign-in. Please try again.');
     }
   };
 
   const logout = async () => {
-    try {
-      const token = await storage.secureGet('session_token', null);
-      
-      if (token) {
-        await fetch(`${API_URL}/api/auth/logout`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-      }
-      
-      await storage.secureRemove('session_token');
-      setUser(null);
-    } catch (error) {
-      console.error('Logout error:', error);
-    }
+    setError(null);
+    await supabase.auth.signOut();
+    setUser(null);
   };
 
+  const clearError = () => setError(null);
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, error, login, logout, clearError }}>
       {children}
     </AuthContext.Provider>
   );

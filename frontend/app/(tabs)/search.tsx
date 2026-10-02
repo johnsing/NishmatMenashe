@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet, TextInput, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'expo-router';
 import { apiClient } from '@/src/api/client';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,30 +15,47 @@ interface SearchResult {
   english_translation: string;
 }
 
+const SEARCH_DEBOUNCE_MS = 300;
+
 export default function SearchScreen() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
+  // Guards against out-of-order responses when the user types quickly:
+  // only the result of the latest request is applied.
+  const requestSeq = useRef(0);
   const router = useRouter();
 
-  const handleSearch = async (text: string) => {
-    setQuery(text);
-    
-    if (text.length < 2) {
+  useEffect(() => {
+    if (query.length < 2) {
       setResults([]);
+      setLoading(false);
       return;
     }
-    
+
     setLoading(true);
-    try {
-      const data = await apiClient.get<SearchResult[]>(`/api/search?q=${encodeURIComponent(text)}`);
-      setResults(data);
-    } catch (error) {
-      console.error('Search error:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    const seq = ++requestSeq.current;
+
+    const timer = setTimeout(async () => {
+      try {
+        const data = await apiClient.get<SearchResult[]>(`/api/search?q=${encodeURIComponent(query)}`);
+        if (seq === requestSeq.current) {
+          setResults(data);
+        }
+      } catch (error) {
+        if (seq === requestSeq.current) {
+          console.error('Search error:', error);
+          setResults([]);
+        }
+      } finally {
+        if (seq === requestSeq.current) {
+          setLoading(false);
+        }
+      }
+    }, SEARCH_DEBOUNCE_MS);
+
+    return () => clearTimeout(timer);
+  }, [query]);
 
   const renderResult = ({ item }: { item: SearchResult }) => (
     <TouchableOpacity
@@ -70,12 +87,12 @@ export default function SearchScreen() {
           placeholder="Search texts..."
           placeholderTextColor="#9A8A7A"
           value={query}
-          onChangeText={handleSearch}
+          onChangeText={setQuery}
           autoCapitalize="none"
           autoCorrect={false}
         />
         {query.length > 0 && (
-          <TouchableOpacity onPress={() => handleSearch('')}>
+          <TouchableOpacity onPress={() => setQuery('')}>
             <Ionicons name="close-circle" size={20} color="#9A8A7A" />
           </TouchableOpacity>
         )}
@@ -109,6 +126,7 @@ export default function SearchScreen() {
           renderItem={renderResult}
           keyExtractor={(item) => item.verse_id}
           contentContainerStyle={styles.resultsList}
+          keyboardShouldPersistTaps="handled"
         />
       )}
     </View>

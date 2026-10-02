@@ -1,7 +1,8 @@
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { apiClient } from '@/src/api/client';
+import { Ionicons } from '@expo/vector-icons';
 
 interface Category {
   category_id: string;
@@ -14,6 +15,8 @@ interface Category {
 export default function LibraryScreen() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -24,11 +27,19 @@ export default function LibraryScreen() {
     try {
       const data = await apiClient.get<Category[]>('/api/categories');
       setCategories(data);
-    } catch (error) {
-      console.error('Error loading categories:', error);
+      setError(null);
+    } catch (err: any) {
+      console.error('Error loading categories:', err);
+      setError(err?.message ?? 'Could not load the library');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadCategories();
   };
 
   const renderCategory = ({ item }: { item: Category }) => (
@@ -54,6 +65,18 @@ export default function LibraryScreen() {
     );
   }
 
+  if (error && categories.length === 0) {
+    return (
+      <View style={styles.centerContainer}>
+        <Ionicons name="cloud-offline-outline" size={64} color="#C8B8A8" />
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={loadCategories} activeOpacity={0.8}>
+          <Text style={styles.retryButtonText}>Try Again</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <FlatList
@@ -63,6 +86,14 @@ export default function LibraryScreen() {
         contentContainerStyle={styles.listContent}
         numColumns={2}
         columnWrapperStyle={styles.row}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#8B4513"
+            colors={['#8B4513']}
+          />
+        }
       />
     </View>
   );
@@ -78,6 +109,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#FAF8F3',
+    paddingHorizontal: 32,
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#7A6A5A',
+    textAlign: 'center',
+    marginTop: 16,
+    lineHeight: 22,
+  },
+  retryButton: {
+    marginTop: 20,
+    backgroundColor: '#8B4513',
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+    borderRadius: 10,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
   },
   listContent: {
     padding: 12,

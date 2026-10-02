@@ -52,20 +52,16 @@ export default function ChapterScreen() {
 
   const loadChapterData = async () => {
     try {
+      // Was: fetch ALL books, then ALL chapters of each book, scanning for a
+      // match — O(books) requests per chapter opened. Now: 3 targeted requests.
       const versesData = await apiClient.get<Verse[]>(`/api/chapters/${id}/verses`);
       setVerses(versesData);
 
-      // Get chapter info
-      const allBooks = await apiClient.get<Book[]>('/api/books');
-      for (const b of allBooks) {
-        const chapters = await apiClient.get<Chapter[]>(`/api/books/${b.book_id}/chapters`);
-        const chapterData = chapters.find((c) => c.chapter_id === id);
-        if (chapterData) {
-          setChapter(chapterData);
-          setBook(b);
-          break;
-        }
-      }
+      const chapterData = await apiClient.get<Chapter>(`/api/chapters/${id}`);
+      setChapter(chapterData);
+
+      const bookData = await apiClient.get<Book>(`/api/books/${chapterData.book_id}`);
+      setBook(bookData);
     } catch (error) {
       console.error('Error loading chapter:', error);
     } finally {

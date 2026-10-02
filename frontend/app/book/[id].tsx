@@ -34,11 +34,13 @@ export default function BookScreen() {
 
   const loadBookData = async () => {
     try {
-      const booksData = await apiClient.get<Book[]>('/api/books');
-      const bookData = booksData.find(b => b.book_id === id);
-      setBook(bookData || null);
-      
-      const chaptersData = await apiClient.get<Chapter[]>(`/api/books/${id}/chapters`);
+      // Was: fetch ALL books and filter client-side. Now: direct lookup,
+      // with both requests issued in parallel.
+      const [bookData, chaptersData] = await Promise.all([
+        apiClient.get<Book>(`/api/books/${id}`),
+        apiClient.get<Chapter[]>(`/api/books/${id}/chapters`),
+      ]);
+      setBook(bookData);
       setChapters(chaptersData);
     } catch (error) {
       console.error('Error loading book:', error);
@@ -101,7 +103,7 @@ export default function BookScreen() {
           headerTintColor: '#8B4513',
         }}
       />
-      
+
       <View style={[styles.bookHeader, { backgroundColor: book.cover_color }]}>
         <Ionicons name="book" size={48} color="#fff" style={styles.bookIcon} />
         <Text style={styles.bookTitle}>{book.title}</Text>

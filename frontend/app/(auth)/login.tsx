@@ -1,9 +1,9 @@
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useAuth } from '@/src/contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function LoginScreen() {
-  const { login } = useAuth();
+  const { login, error, clearError } = useAuth();
 
   return (
     <View style={styles.container}>
@@ -12,13 +12,23 @@ export default function LoginScreen() {
         <View style={styles.iconContainer}>
           <Ionicons name="book" size={80} color="#8B4513" />
         </View>
-        
+
         <Text style={styles.title}>NishmatMenashe Library</Text>
         <Text style={styles.subtitle}>
           Access timeless wisdom and sacred texts{`\n`}anytime, anywhere
         </Text>
-        
-        <TouchableOpacity 
+
+        {error ? (
+          <View style={styles.errorBox}>
+            <Ionicons name="alert-circle" size={18} color="#8B1A1A" style={styles.errorIcon} />
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity onPress={clearError} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Ionicons name="close" size={18} color="#8B1A1A" />
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
+        <TouchableOpacity
           style={styles.loginButton}
           onPress={login}
           activeOpacity={0.8}
@@ -26,7 +36,7 @@ export default function LoginScreen() {
           <Ionicons name="logo-google" size={24} color="#fff" style={styles.googleIcon} />
           <Text style={styles.loginButtonText}>Continue with Google</Text>
         </TouchableOpacity>
-        
+
         <Text style={styles.disclaimer}>
           Sign in to sync your bookmarks and{`\n`}reading progress across all devices
         </Text>
@@ -69,8 +79,30 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#7A6A5A',
     textAlign: 'center',
-    marginBottom: 48,
+    marginBottom: 32,
     lineHeight: 24,
+  },
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FDECEA',
+    borderColor: '#8B1A1A',
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 24,
+    width: '100%',
+    maxWidth: 320,
+  },
+  errorIcon: {
+    marginRight: 8,
+  },
+  errorText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#8B1A1A',
+    lineHeight: 18,
   },
   loginButton: {
     flexDirection: 'row',
