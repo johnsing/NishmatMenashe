@@ -41,7 +41,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="library" size={size} color={color} />
           ),
-          headerTitle: 'NishmatMenashe Library',
+          headerTitle: 'Nishmat-Menashe',
         }}
       />
       <Tabs.Screen

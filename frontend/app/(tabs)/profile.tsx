@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
 export default function ProfileScreen() {
-  const { user, logout } = useAuth();
+  const { user,  } = useAuth();
   const router = useRouter();
   const [darkMode, setDarkMode] = useState(false);
   const [fontSize, setFontSize] = useState('medium');
