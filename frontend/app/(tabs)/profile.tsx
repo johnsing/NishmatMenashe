@@ -16,11 +16,6 @@ export default function ProfileScreen() {
     { label: 'Large', value: 'large' },
   ];
 
-  const handleLogout = async () => {
-    await logout();
-    router.replace('/(auth)/login');
-  };
-
   return (
     <ScrollView style={styles.container}>
       {/* User Info Section */}
